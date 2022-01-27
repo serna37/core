@@ -1,10 +1,8 @@
 // ========================================
 // ファイル操作機能
 // ========================================
-import CMD from '/src/component/logic/CMD.js'
-
-// ファイル操作
-const fs = require('fs');
+import CMD from './core/CMD.js'
+const fs = require('fs'); // ファイル操作
 
 const File = {
   /**

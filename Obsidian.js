@@ -3,6 +3,7 @@
 // ========================================
 
 // 呼出し元登録/削除を行う共通ストレージとなる.
+// ※注意 関数の登録は可能ですが、Obsidian.core.setを実行すると削除されます.
 let Obsidian = {
   // このcoreストレージは読み取り専用で, 汎用機能が設定されます.
   core: {
@@ -10,16 +11,93 @@ let Obsidian = {
     // ストレージ操作系
     // ========================================
     /**
-    * 可変長引数に応じたkeyの階層で連想配列を作成.
+    * 可変長引数に応じたkeyの階層で連想配列を作成(初期化).
     *
     * @param key 可変長
     * @return id文字列
     */
-    generateStorage(...key) {
-      Obsidian[key[0]] = {};
-      key.reduce((x, y) => {
-        Obsidian[x][y] = {};
+    generate(...key) {
+      let tmp = Obsidian;
+      key.forEach(v => {
+        tmp[v] = {};
+        tmp = tmp[v];
       });
+    },
+    /**
+    * 可変長引数に応じたkeyを作成.
+    * 既存のkeyに影響を与えない
+    *
+    * @param key 可変長
+    * @return void
+    */
+    addKey(...key) {
+      // 未作成の階層は初期化
+      let tmp = Obsidian;
+      key.forEach(v => {
+        if (tmp[v] == undefined) {
+          tmp[v] = {};
+        }
+        tmp = tmp[v];
+      });
+    },
+    /**
+    * 可変長引数に応じたkeyに値を登録(上書き).
+    * TODO 時間がかかります.
+    * XXX 使用非推奨
+    * addKeyを実行後に直接追加してください.
+    * Obsidian.addKey(k1, k2)
+    * Obsidian[k1][k2] = val
+    *
+    * @param val 値
+    * @param key 可変長
+    * @return void
+    */
+    set(val, ...key) {
+      // 未作成の階層は初期化
+      let tmp = Obsidian;
+      key.forEach(v => {
+        if (tmp[v] == undefined) {
+          tmp[v] = {};
+        }
+        tmp = tmp[v];
+      });
+      // セット
+      let st = JSON.stringify(Obsidian);
+      let stock = [];
+      key.forEach(v => {
+        let rg = st.match(new RegExp(`(.*${v})(.*)`));
+        stock.push(rg[1]);
+        st = rg[2];
+      });
+      // ":{最下層keyの値}...を
+      // ":val...に置換
+      stock.push(st.replace(/":({[^}]*})/, `":"${val}"`));
+      Obsidian = JSON.parse(stock.join(''));
+      console.log(Obsidian)
+      Obsidian.core = this; // coreが{}となるので再登録
+      // TODO JSONにするタイミングで関数が消えちゃう.
+      // 関数をあらかじめ退避してから再登録するか?
+    },
+    /**
+    * 可変長引数に応じたkeyでObsidianから値を取得.
+    * ないkeyのストレージは作成, 既存のkeyに影響を与えない.
+    *
+    * @param key 可変長
+    * @return 値, 無ければストレージを作成し{}をセット, nullを返却
+    */
+    get(...key) {
+      // 未作成の階層は初期化
+      let tmp = Obsidian;
+      key.forEach(v => {
+        if (tmp[v] == undefined) {
+          tmp[v] = {};
+        }
+        tmp = tmp[v];
+      });
+      if (Object.keys(tmp).length == 0) {
+        return null;
+      }
+      return tmp;
     },
     // ========================================
     // 直列実行

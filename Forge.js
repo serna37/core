@@ -126,7 +126,10 @@ const Forge = {
    * @return void
    */
   load(id, component, after) {
-    // コンポーネントの状態をセッションストレージに登録
+    // ========================================
+    // 1. コンポーネントの状態をセッションストレージに登録
+    // ========================================
+
     let session = window.sessionStorage.getItem('state');
     let delComp = null; // stateから消えるコンポーネント
     if (session) {
@@ -149,50 +152,52 @@ const Forge = {
         JSON.stringify([{id: id, component: component}]));
     }
 
-    // 読み込み対象のコンポーネントのバージョン登録/取得
+
+    // ========================================
+    // 2. 読み込み対象のコンポーネントのバージョン登録/取得
+    // ========================================
     // (以降のスクリプトをバージョニングするため)
+
+    const thisKey = Profile.storageName;
+    const wk = Profile.WorkKey;
+
     let verLabel = 0;
-    let allVers = [];
-    try {
-      allVers = Obsidian[Profile.storageName][Profile.WorkKey.compoVer];
-    } catch(e) {
-      // ObsidianにforgeStorageが未登録
-      Obsidian.core.generateStorage(Profile.storageName, Profile.WorkKey.compoVer);
-    }
-    if (allVers == undefined) {
-      Obsidian[Profile.storageName][Profile.WorkKey.compoVer] = [];
-    }
+
     // 初期化 or 取得
-    allVers = Obsidian[Profile.storageName][Profile.WorkKey.compoVer];
-    let currentVersidx = allVers.findIndex(v => v.componentName == component);
-    if (currentVersidx == -1) {
+    let allVers = Obsidian.core.get(thisKey, wk.compoVer);
+    if (!allVers) {
+      allVers = [];
+    }
+    let nowVersidx = allVers.findIndex(v => v.componentName == component);
+    if (nowVersidx == -1) {
       // なければバージョン登録
       allVers.push({componentName: component, version: 1});
       verLabel = 1;
     } else {
       // あればバージョンを更新
-      let currentVersion = Number(allVers[currentVersidx].version);
-      allVers[currentVersidx].version = currentVersion + 1;
-      verLabel = currentVersion + 1;
+      let nowVer = Number(allVers[nowVersidx].version);
+      allVers[nowVersidx].version = nowVer + 1;
+      verLabel = nowVer + 1;
     }
-    Obsidian[Profile.storageName][Profile.WorkKey.compoVer] = allVers;
+    Obsidian[thisKey][wk.compoVer] = allVers;
+
+    // ========================================
+    // 3. ロード準備
+    // ========================================
 
     // 一時ロードされるiframe用のidを用意(重複しない)
-    // TODO ユニークid作成処理は他でもやってるので, Obsidianに入れる
-    // 引数: 元の文字列, 戻り値: ユニークid文字列
-    let iframeId = this.get(Profile.WorkKey.component(component));
-    let unique = iframeId;
-    let i = 1;
-    while (document.querySelector(`#${unique}`)) {
-      i = (i + 1) | 0;
-      unique = iframeId + '-' + i;
-    }
-    iframeId = unique;
+    let iframeId = this.uniqueId(wk.component(component));
+    Obsidian.core.addKey(thisKey, wk.component(component));
+    Obsidian[thisKey][wk.component(component)] = iframeId;
 
     // ソースを用意(JS/CSSはバージョニング)
     const iframeSrc = Profile.getHtmlURL(component);
     let styleHref = `${Profile.getStyleURL(component)}?v-${verLabel}`;
     let scriptSrc = `${Profile.getScriptURL(component)}?v-${verLabel}`;
+
+    // ========================================
+    // 4. ロードの実行順を定義
+    // ========================================
 
     // 1. ロード先配下をクリア
     const clear = (v, r) => {
@@ -210,7 +215,7 @@ const Forge = {
     };
     // 3. CSSをセット
     const setCss = (v, r) => {
-      // delCompを削除
+      // stateから削除する要素を削除
       document.querySelectorAll('link')
         .forEach(v => {
           if (v.href.indexOf(Profile.getStyleURL(delComp)) != -1) {
@@ -240,7 +245,7 @@ const Forge = {
     };
     // 4. JSをセット
     const setJs = (v, r) => {
-      // delCompを削除
+      // stateから削除する要素を削除
       document.querySelectorAll('script')
         .forEach(v => {
           if (v.src.indexOf(Profile.getScriptURL(delComp)) != -1) {
@@ -272,6 +277,10 @@ const Forge = {
       }
       r(v);
     };
+
+    // ========================================
+    // end. ロードの実行順を定義
+    // ========================================
 
     // iframeロード設定
     const createIframe = (v, r) => {
@@ -323,64 +332,20 @@ const Forge = {
     }
   },
 
-  // ========================================
-  // ユニークid作成/共通ストレージ操作
-  // ========================================
-  // TODO このへんForgeにあるのがなんか変, 切り分けたい
   /**
-  * 共通ストレージから, keyで指定したid文字列を取得
-  * なければ生成/セットし, 新idを返却
+  * ユニークid.
   *
-  * @param key
-  * @return id文字列
+  * @param key 作成したいid文字列
+  * @return ユニークにしたid文字列
   */
-  get(key) {
-    let result;
-    try {
-      result = Obsidian[Profile.storageName][key];
-    } catch (e) {
-      // 未登録
-    }
-    // 未登録
-    if (result == undefined) {
-      result = this.generate(key);
-    }
-    return result;
-  },
-
-  /**
-  * 共通ストレージに, keyと id文字列をセット
-  * idは必ずユニークとなる.
-  *
-  * @param key
-  * @return 生成したid
-  */
-  generate(key) {
-    // TODO ユニークid作成のみObsidianに切り出す.
+  uniqueId(key) {
     let unique = key;
     let i = 1;
     while (document.querySelector(`#${unique}`)) {
       i = (i + 1) | 0;
       unique = key + '-' + i;
     }
-    try {
-      Obsidian[Profile.storageName][key] = unique;
-    } catch(e) {
-      // ObsidianにforgeStorageが未登録
-      Obsidian.core.generateStorage(Profile.storageName, key);
-      Obsidian[Profile.storageName][key] = unique;
-    }
     return unique;
-  },
-
-  /**
-  * 共通ストレージから指定したkey項目を削除
-  *
-  * @param key
-  * @return void
-  */
-  delete(key) {
-    delete Obsidian[Profile.storageName][key];
   },
 
   // ========================================
@@ -390,13 +355,19 @@ const Forge = {
   * ロード画像をフェードイン
   */
   openLoadingView(r) {
-    // ロード画面用idを生成
-    let id = this.get(Profile.WorkKey.loading);
-    if (document.querySelector(`#${id}`)) {
-      // あるならやらない
+    const thisKey = Profile.storageName;
+    const wk = Profile.WorkKey;
+
+    // 作業用idを取得
+    let id = Obsidian.core.get(thisKey, wk.loading);
+    // あるならやらない
+    if (id) {
       r();
       return;
     }
+    // なければ初回ロード
+    id = this.uniqueId(wk.loading);
+    Obsidian[thisKey][wk.loading] = id;
     let loadObj = document.createElement('div');
     loadObj.id = id;
     // 画面全体に
@@ -414,10 +385,8 @@ const Forge = {
     loadObj.style.backgroundColor = 'black';
     loadObj.style.minHeight = '100%';
     loadObj.style.minWidth = '100%';
-    // フェードイン用idを生成
-    let fadein = this.get(Profile.WorkKey.fadein);
-    // フェードイン時間を指定
-    let delay = Profile.WorkKey.fadeinDelay;
+    // フェードイン用idを生成(すぐに削除)
+    let fadein = this.uniqueId(wk.fadein);
     let css = document.createElement('style');
     css.id = fadein;
     css.media = 'screen';
@@ -429,25 +398,25 @@ const Forge = {
       ].join(' ')}}`
     ));
     document.head.appendChild(css);
-    loadObj.style.animation = `${fadein} ${delay}s`;
+    loadObj.style.animation = `${fadein} ${wk.fadeinDelay}s`;
     document.body.appendChild(loadObj);
     // 最低再生時間だけ遅延する
     // フェードイン+再生 後に不要要素を削除
     setTimeout(() => {
       document.querySelector(`#${fadein}`).remove();
-      this.delete(Profile.WorkKey.fadein);
       r();
-    }, delay*1000+Profile.WorkKey.loadingDelay*1000);
+    }, wk.fadeinDelay*1000 + wk.loadingDelay*1000);
   },
 
   /**
   * ロード画像をフェードアウト
   */
   closeLoadingView() {
-    // フェードイン用idを生成
-    let fadeout = this.get(Profile.WorkKey.fadeout);
+    const wk = Profile.WorkKey;
+    // フェードイン用idを生成(すぐに削除)
+    let fadeout = this.uniqueId(wk.fadeout);
     // フェードアウト時間を指定
-    let delay = Profile.WorkKey.fadeoutDelay;
+    let delay = wk.fadeoutDelay;
     let css = document.createElement('style');
     css.id = fadeout;
     css.media = 'screen';
@@ -460,14 +429,14 @@ const Forge = {
     ));
     document.head.appendChild(css);
     // ロード画面用idを取得
-    let id = this.get(Profile.WorkKey.loading);
+    let id = Obsidian.core.get(Profile.storageName, wk.loading);
     document.querySelector(`#${id}`).style.animation = `${fadeout} ${delay}s`;
     // フェードアウト後に削除
     setTimeout(() => {
       document.querySelector(`#${fadeout}`).remove();
       document.querySelector(`#${id}`).remove();
-      this.delete(Profile.WorkKey.fadeout);
-      this.delete(Profile.WorkKey.loading);
+      // フェードイン画像idをObsidianから削除
+      delete Obsidian[Profile.storageName][wk.loading];
     }, delay*1000);
   },
 
