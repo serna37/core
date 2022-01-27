@@ -1,7 +1,7 @@
 // ========================================
 // ファイル操作機能
 // ========================================
-import CMD from './core/CMD.js'
+import CMD from './CMD.js'
 const fs = require('fs'); // ファイル操作
 
 const File = {
