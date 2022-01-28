@@ -4,7 +4,7 @@
 import CMD from './CMD.js'
 const fs = require('fs'); // ファイル操作
 
-const File = {
+const Fsys = {
   /**
   * ファイルの存在確認.(同期処理)
   * @param path 確認パス
@@ -13,7 +13,7 @@ const File = {
   existance(path) {
     try {
       return fs.statSync(path) != null;
-    } catch (e) {
+    } catch(e) {
       return false;
     }
   },
@@ -31,9 +31,12 @@ const File = {
   * @return フォルダ一覧の名前リスト
   */
   dirList(path) {
-    return CMD.cmdSync(`cd /d "${path}" && dir /ad /b /o:n`)
-      .split(/\n/)
-      .filter(v => v);
+    try {
+      return CMD.cmdSync(`cd /d "${path}" && dir /ad /b /o:n`)
+        .split(/\r\n/).filter(v => v);
+    } catch(e) {
+      return null;
+    }
   },
   /**
   * ファイル名のみ一覧を取得(名前昇順ソート).(同期処理)
@@ -41,9 +44,12 @@ const File = {
   * @return ファイル一覧の名前リスト
   */
   fList(path) {
-    return CMD.cmdSync(`cd /d "${path}" && dir /a-d /b /o:n`)
-      .split(/\n/)
-      .filter(v => v);
+    try {
+      return CMD.cmdSync(`cd /d "${path}" && dir /a-d /b /o:n`)
+        .split(/\r\n/).filter(v => v);
+    } catch(e) {
+      return null;
+    }
   },
   /**
   * ファイル読み込み.(同期処理)
@@ -55,7 +61,7 @@ const File = {
     let charCd = cd ? cd : 'utf8';
     try {
       return fs.readFileSync(path, charCd);
-    } catch (e) {
+    } catch(e) {
       return false;
     }
   },
@@ -70,13 +76,13 @@ const File = {
   write(path, text, mode, cd) {
     let charCd = cd ? cd : 'utf8';
     try {
-      if (mode) {
+      if (!mode) {
         fs.writeFileSync(path, text, charCd);
       } else {
         fs.appendFileSync(path, text, charCd);
       }
       return true;
-    } catch (e) {
+    } catch(e) {
       return false;
     }
   },
@@ -89,12 +95,12 @@ const File = {
     try {
       fs.mkdirSync(path);
       return true;
-    } catch (e) {
+    } catch(e) {
       return false;
     }
   },
   /**
-  * コピー(同期処理)
+  * ファイルコピー(同期処理)
   * @param from 元
   * @param to コピー先
   * @return 成功時true エラー時false
@@ -103,12 +109,12 @@ const File = {
     try {
       fs.copyFileSync(from, to);
       return true;
-    } catch (e) {
+    } catch(e) {
       return false;
     }
   },
   /**
-  * コピー(非同期処理)
+  * ファイルコピー(非同期処理)
   * @param from 元
   * @param to コピー先
   * @return 成功時true エラー時false
@@ -117,7 +123,35 @@ const File = {
     try {
       fs.copyFile(from, to);
       return true;
-    } catch (e) {
+    } catch(e) {
+      return false;
+    }
+  },
+  /**
+  * フォルダコピー(非同期処理)
+  * @param from 元
+  * @param to コピー先
+  * @return 成功時true エラー時false
+  */
+  robocopy(from, to) {
+    try {
+      CMD.cmdParallel(`robocopy /e "${from}" "${to}"`);
+      return true;
+    } catch(e) {
+      return false;
+    }
+  },
+  /**
+  * フォルダコピー(非同期処理)
+  * @param from 元
+  * @param to コピー先
+  * @return 成功時true エラー時false
+  */
+  cpSync(from, to) {
+    try {
+      CMD.cmdSync(`copy /y "${from}" "${to}"`);
+      return true;
+    } catch(e) {
       return false;
     }
   },
@@ -130,10 +164,25 @@ const File = {
     try {
       fs.unlinkSync(path);
       return true;
-    } catch (e) {
+    } catch(e) {
       return false;
     }
   },
-
+  /**
+  * 削除(同期処理)
+  * @param path 対象パス
+  * @return void
+  */
+  delCmd(path) {
+    CMD.cmdSync(`rmdir /s /q ${path}`);
+  },
+  /**
+  * 圧縮(同期処理)
+  * @param path 対象パス
+  * @return void
+  */
+  compress(path) {
+    CMD.cmdSync(`powershell Compress-Archive -Path ${path} -DestinationPath ${path}.zip -Force`);
+  },
 };
-export default File;
+export default Fsys;

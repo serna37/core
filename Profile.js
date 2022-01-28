@@ -5,16 +5,16 @@ const Profile = {
   // Obsidianストレージ登録名
   storageName: 'ForgeStorage',
   // コンポーネント名からロードするHTML
-  getHtmlURL: component => `/src/component/${component}/${component}.html`,
+  getHtmlURL: component => `./component/${component}/${component}.html`,
   // コンポーネント名からロードするCSS
-  getStyleURL: component => `/src/component/${component}/${component}.css`,
+  getStyleURL: component => `./component/${component}/${component}.css`,
   // コンポーネント名からロードするJSL
-  getScriptURL: component => `/src/component/${component}/${component}.js`,
+  getScriptURL: component => `./component/${component}/${component}.js`,
   // ロード画像
   getLoadImg: () => {
     // 現在の秒のmod5を乱数として選択
     let no = Math.floor(new Date().getSeconds() % 5) + 1;
-    return `url("/src/core/loadimg/load${no}.gif")`;
+    return `url("./core/loadimg/load${no}.gif")`; // index.htmlの階層から見る
   },
   // 作業用idの生成key
   WorkKey: {
@@ -30,7 +30,7 @@ const Profile = {
 
     // === コンポーネントロード中の設定===
     loading: 'loading-id',// 画像id
-    loadingDelay: 0,// 最低再生時間
+    loadingDelay: 2,// 最低再生時間
     fadein: 'fade-in-id',// フェードインアニメid
     fadeinDelay: 0.5,// フェードイン時間
     fadeout: 'fade-out-id',// フェードアウトアニメid
