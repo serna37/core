@@ -113,7 +113,7 @@ let Obsidian = {
            r(v);
      *   }, 1000);
      * }
-     * [sampleFunction, sampleFunction, ...]が引数となる
+     * [sampleFunction, sampleFunction, ...]が引数となる.
      *
      * @param arr 直列実行する関数の配列 (index順)
      * @return arrを全て実行したあとのPromiseを返却
